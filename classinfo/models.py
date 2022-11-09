@@ -37,34 +37,33 @@ class Day(models.Model):
         ordering = ['day']
 
 
-class Date(models.Model):
-    date_id = models.AutoField(primary_key=True)
-    year = models.ForeignKey(Year, related_name='dates', on_delete=models.PROTECT)
-    month = models.ForeignKey(Month, related_name='dates', on_delete=models.PROTECT)
-    day = models.ForeignKey(Day, related_name='dates', on_delete=models.PROTECT)
+class Style(models.Model):
+    style_id = models.AutoField(primary_key=True)
+    style_name = models.CharField(max_length=50)
 
     def __str__(self):
-        return f'{self.month.month} / {self.day.day} / {self.year.year}'
+        return f'{self.style_name}'
 
     def get_absolute_url(self):
-        return reverse('classinfo_date_detail_urlpattern',
+        return reverse('classinfo_style_detail_urlpattern',
                         kwargs={'pk': self.pk}
                         )
 
     def get_update_url(self):
-        return reverse('classinfo_date_update_urlpattern',
+        return reverse('classinfo_style_update_urlpattern',
                         kwargs={'pk': self.pk}
                         )
 
     def get_delete_url(self):
-        return reverse('classinfo_date_delete_urlpattern',
+        return reverse('classinfo_style_delete_urlpattern',
                         kwargs={'pk': self.pk}
                         )
 
     class Meta:
-        ordering = ['year__year', 'month__month', 'day__day']
+        ordering = ['style_name']
         constraints = [
-            UniqueConstraint(fields=['year', 'month', 'day'], name='unique_date')
+            UniqueConstraint(fields=['style_name'],
+                             name='unique_style')
         ]
 
 
@@ -72,14 +71,16 @@ class Course(models.Model):
     course_id = models.AutoField(primary_key=True)
     course_name = models.CharField(max_length=255)
     course_intro = models.TextField(max_length=5000)
+    style = models.ForeignKey(Style, related_name='courses', on_delete=models.PROTECT)
 
     def __str__(self):
-        return f'{self.course_name}'
+        return f'{self.style} - {self.course_name}'
 
     class Meta:
-        ordering = ['course_name']
+        ordering = ['style', 'course_name']
         constraints = [
-            UniqueConstraint(fields=['course_name'], name='unique_course')
+            UniqueConstraint(fields=['style', 'course_name'],
+                             name='unique_course')
         ]
 
     def get_absolute_url(self):
@@ -131,49 +132,50 @@ class Learner(models.Model):
         ordering = ['last_name', 'first_name', 'disambiguator']
         constraints = [
             UniqueConstraint(fields=['last_name', 'first_name', 'disambiguator'],
-                             name='unique_student')
+                             name='unique_learner')
         ]
 
 
-class Style(models.Model):
-    style_id = models.AutoField(primary_key=True)
-    style_name = models.CharField(max_length=20)
-    date = models.ForeignKey(Date, related_name='styles', on_delete=models.PROTECT)
-    course = models.ForeignKey(Course, related_name='styles', on_delete=models.PROTECT)
+class Availability(models.Model):
+    availability_id = models.AutoField(primary_key=True)
+    course = models.ForeignKey(Course, related_name='availabilities', on_delete=models.PROTECT)
+    year = models.ForeignKey(Year, related_name='dates', on_delete=models.PROTECT)
+    month = models.ForeignKey(Month, related_name='dates', on_delete=models.PROTECT)
+    day = models.ForeignKey(Day, related_name='dates', on_delete=models.PROTECT)
 
     def __str__(self):
-        return f'{self.course.course_name} - {self.style_name} ({self.date.__str__()})'
+        return f'{self.course} - {self.month.month}/{self.day.day}/{self.year.year}'
 
     def get_absolute_url(self):
-        return reverse('classinfo_style_detail_urlpattern',
+        return reverse('classinfo_availability_detail_urlpattern',
                         kwargs={'pk': self.pk}
                         )
 
     def get_update_url(self):
-        return reverse('classinfo_style_update_urlpattern',
+        return reverse('classinfo_availability_update_urlpattern',
                         kwargs={'pk': self.pk}
                         )
 
     def get_delete_url(self):
-        return reverse('classinfo_style_delete_urlpattern',
+        return reverse('classinfo_availability_delete_urlpattern',
                         kwargs={'pk': self.pk}
                         )
 
     class Meta:
-        ordering = ['course', 'style_name', 'date']
+        ordering = ['course', 'year', 'month', 'day']
         constraints = [
-            UniqueConstraint(fields=['course', 'style_name', 'date'],
-                             name='unique_section')
+            UniqueConstraint(fields=['course', 'year', 'month', 'day'],
+                             name='unique_availability')
         ]
 
 
 class Registration(models.Model):
     registration_id = models.AutoField(primary_key=True)
     learner = models.ForeignKey(Learner, related_name='registrations', on_delete=models.PROTECT)
-    style = models.ForeignKey(Style, related_name='registrations', on_delete=models.PROTECT)
+    availability = models.ForeignKey(Availability, related_name='registrations', on_delete=models.PROTECT)
 
     def __str__(self):
-        return f'{self.style} / {self.learner}'
+        return f'{self.availability} - {self.learner}'
 
     def get_absolute_url(self):
         return reverse('classinfo_registration_detail_urlpattern',
@@ -191,8 +193,8 @@ class Registration(models.Model):
                         )
 
     class Meta:
-        ordering = ['style', 'learner']
+        ordering = ['availability', 'learner']
         constraints = [
-            UniqueConstraint(fields=['style', 'learner'],
+            UniqueConstraint(fields=['availability', 'learner'],
                              name='unique_registration')
         ]
